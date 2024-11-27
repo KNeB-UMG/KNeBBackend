@@ -12,10 +12,6 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     && docker-php-ext-install zip
 
-# Install Symfony CLI
-RUN curl -sS https://get.symfony.com/cli/installer | bash && \
-    mv /root/.symfony5/bin/symfony /usr/local/bin/symfony
-
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -38,16 +34,18 @@ ENV APP_DEBUG=1
 # Copy existing application directory
 COPY . .
 
+# Create storage directory and set permissions
+RUN mkdir -p storage/framework/{sessions,views,cache} && \
+    mkdir -p storage/logs && \
+    chmod -R 777 storage && \
+    chmod -R 777 bootstrap/cache
+
 # Install dependencies
 RUN composer install --no-scripts --no-autoloader
 
 # Generate autoloader
 RUN composer dump-autoload --optimize
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/symfony \
-    && chmod -R 777 /var/www/symfony/var
-
 EXPOSE 8000
 
-CMD ["symfony", "server:start", "--port=8000", "--no-tls"]
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
