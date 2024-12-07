@@ -15,8 +15,8 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->string('password');
             $table->string('role')->default('user');
-            $table->timestamp('join_date')->nullable();
-            $table->timestamp('expiry_date')->nullable();
+            $table->string('position')->nullable();
+            $table->timestamp('deactivation_date')->nullable();
             $table->boolean('is_active')->default(true);
             $table->string('photo')->nullable();
             $table->text('description')->nullable();

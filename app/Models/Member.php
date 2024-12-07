@@ -7,10 +7,35 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Laravel\Sanctum\HasApiTokens;
 
 class Member extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
+
+    public const string ROLE_ADMIN = 'role_admin';
+    public const string ROLE_MODERATOR = 'role_moderator';
+    public const string ROLE_USER = 'role_user';
+    public const string ROLE_NONE = 'role_none';
+
+    private const array ROLE_PERMISSIONS = [
+        self::ROLE_ADMIN => [
+            'manage_users',
+            'manage_roles',
+            'manage_content',
+            'delete_content',
+            'deactivate_users',
+            'create_users',
+        ],
+        self::ROLE_MODERATOR => [
+            'manage_content',
+            'delete_content',
+            'moderate_users'
+        ],
+        self::ROLE_USER => [
+        ],
+        self::ROLE_NONE => []
+    ];
 
     protected $fillable = [
         'first_name',
@@ -18,8 +43,8 @@ class Member extends Authenticatable
         'email',
         'password',
         'role',
-        'join_date',
-        'expiry_date',
+        'position',
+        'deactivation_date',
         'is_active',
         'photo',
         'description'
@@ -31,10 +56,55 @@ class Member extends Authenticatable
 
     protected $casts = [
         'is_active' => 'boolean',
-        'join_date' => 'datetime',
-        'expiry_date' => 'datetime'
+        'deactivation_date' => 'datetime'
     ];
 
+    public static function getAvailableRoles(): array
+    {
+        return [
+            self::ROLE_ADMIN,
+            self::ROLE_MODERATOR,
+            self::ROLE_USER,
+            self::ROLE_NONE
+        ];
+    }
+    public function hasRole(string $role): bool
+    {
+        return $this->role === $role;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(self::ROLE_ADMIN);
+    }
+
+    public function isModerator(): bool
+    {
+        return $this->hasRole(self::ROLE_MODERATOR);
+    }
+
+    public function isActiveUser(): bool
+    {
+        return $this->is_active && $this->role !== self::ROLE_NONE;
+    }
+
+    // Permission-related methods
+    public function getPermissions(): array
+    {
+        return self::ROLE_PERMISSIONS[$this->role] ?? [];
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        return in_array($permission, $this->getPermissions());
+    }
+
+    public function hasAnyPermission(array $permissions): bool
+    {
+        return !empty(array_intersect($permissions, $this->getPermissions()));
+    }
+
+    // Attribute accessors
     protected function fullName(): Attribute
     {
         return Attribute::make(
@@ -42,6 +112,7 @@ class Member extends Authenticatable
         );
     }
 
+    // Relationships
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class, 'author_id');
