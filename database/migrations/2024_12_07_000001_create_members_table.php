@@ -18,8 +18,11 @@ return new class extends Migration
             $table->string('position')->nullable();
             $table->timestamp('deactivation_date')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->boolean('visible')->default(false);
             $table->string('photo')->nullable();
             $table->text('description')->nullable();
+            $table->uuid('activation_code')->nullable();
+            $table->uuid('password_reset_code')->nullable();
             $table->timestamps();
         });
     }

@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use OpenApi\Attributes as OA;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Str;
+use OpenApi\Attributes as OA;
 
 
 #[OA\Info(
