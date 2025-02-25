@@ -12,6 +12,10 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('content');
+            $table->text('description')->nullable();
+            $table->string('event_path')->unique();
+            $table->boolean('visible')->default(false);
+            $table->dateTime('event_date')->nullable();
             $table->foreignId('file_id')->nullable()->constrained('files')->onDelete('set null');
             $table->foreignId('author_id')->constrained('members');
             $table->json('edit_history')->nullable();

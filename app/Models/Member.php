@@ -1,5 +1,5 @@
 <?php
-// Updated Member.php with activation_code and password_reset_code
+// Updated Member.php with activation_code, password_reset_code, and positions
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,11 +16,27 @@ class Member extends Authenticatable
 {
     use HasFactory, Notifiable, HasApiTokens;
 
-    // Constants
+    // Role constants
     public const string ROLE_ADMIN = 'role_admin';
     public const string ROLE_MODERATOR = 'role_moderator';
     public const string ROLE_USER = 'role_user';
     public const string ROLE_NONE = 'role_none';
+
+    // Position constants
+    public const string POSITION_MEMBER = 'członek koła';
+    public const string POSITION_GUARDIAN = 'opiekun';
+    public const string POSITION_CHAIRMAN = 'przewodniczący';
+    public const string POSITION_VICE_CHAIRMAN = 'wiceprzewodniczący';
+    public const string POSITION_TREASURER = 'skarbnik';
+
+    // Position translations
+    public const array POSITION_TRANSLATIONS = [
+        self::POSITION_MEMBER => 'Member',
+        self::POSITION_GUARDIAN => 'Guardian',
+        self::POSITION_CHAIRMAN => 'Chairman',
+        self::POSITION_VICE_CHAIRMAN => 'Vice-chairman',
+        self::POSITION_TREASURER => 'Treasurer',
+    ];
 
     // Role permissions mapping
     private const array ROLE_PERMISSIONS = [
@@ -83,6 +99,32 @@ class Member extends Authenticatable
             self::ROLE_USER,
             self::ROLE_NONE
         ];
+    }
+
+    /**
+     * Get all available positions
+     *
+     * @return array<string>
+     */
+    public static function getAvailablePositions(): array
+    {
+        return [
+            self::POSITION_MEMBER,
+            self::POSITION_GUARDIAN,
+            self::POSITION_CHAIRMAN,
+            self::POSITION_VICE_CHAIRMAN,
+            self::POSITION_TREASURER,
+        ];
+    }
+
+    /**
+     * Get translated position name
+     *
+     * @return string
+     */
+    public function getTranslatedPosition(): string
+    {
+        return self::POSITION_TRANSLATIONS[$this->position] ?? $this->position;
     }
 
     /**

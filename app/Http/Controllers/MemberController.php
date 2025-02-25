@@ -102,7 +102,7 @@ class MemberController extends Controller
         path: '/api/admin/member/create',
         description: 'Create a new user account (Admin only)',
         summary: 'Create a new user account with random password',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -323,7 +323,7 @@ class MemberController extends Controller
         path: '/api/member/deactivate',
         description: 'Deactivate user account (self-deactivation)',
         summary: 'Deactivate own user account',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         responses: [
             new OA\Response(
                 response: 200,
@@ -364,7 +364,7 @@ class MemberController extends Controller
         path: '/api/admin/member/{id}/deactivate',
         description: 'Deactivate user account (Admin only)',
         summary: 'Deactivate user account by ID',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         parameters: [
             new OA\Parameter(
                 name: 'id',
@@ -494,7 +494,7 @@ class MemberController extends Controller
         path: '/api/admin/member/{id}/role',
         description: 'Change user role (Admin only)',
         summary: 'Update role for a specific user',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -611,7 +611,7 @@ class MemberController extends Controller
         path: '/api/admin/member/{id}/visibility',
         description: 'Change user visibility (Admin only)',
         summary: 'Update visibility for a specific user',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -722,7 +722,7 @@ class MemberController extends Controller
         path: '/api/admin/member/{id}/position',
         description: 'Update user position (Admin only)',
         summary: 'Change position for a specific user',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -796,7 +796,6 @@ class MemberController extends Controller
     )]
     public function updatePosition(Request $request, int $id): JsonResponse
     {
-        // Check if user is admin
         if (!Auth::user()->isAdmin()) {
             return response()->json([
                 'message' => 'Unauthorized. Admin access required.'
@@ -833,7 +832,7 @@ class MemberController extends Controller
         path: '/api/member/profile-picture',
         description: 'Upload member profile picture',
         summary: 'Upload or update member profile picture',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
@@ -873,27 +872,34 @@ class MemberController extends Controller
     public function uploadProfilePicture(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|image|max:5120' // 5MB max, images only
+            'file' => 'required|file|image|max:5120'
         ]);
 
         $file = $request->file('file');
-        $fileName = time() . '_profile_' . Auth::id() . '.' . $file->getClientOriginalExtension();
+        $fileName = time() . '_profile_' . Auth::id() . '.jpg';
 
-        // Store in profile-pictures subdirectory - use the uploads disk
-        $path = $file->storeAs('profile-pictures', $fileName, 'uploads');
+        $img = Image::make($file->getRealPath())->fit(512, 512);
+
+        $directory = storage_path('app/uploads/profile-pictures');
+        if (!file_exists($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $img->save(storage_path('app/uploads/profile-pictures/' . $fileName), 90, 'jpg');
+
+        $path = 'profile-pictures/' . $fileName;
 
         $fileModel = File::create([
             'original_name' => $file->getClientOriginalName(),
             'file_path' => $path,
-            'mime_type' => $file->getMimeType(),
+            'mime_type' => 'image/jpeg',
             'uploaded_by' => Auth::id(),
             'file_type' => 'image',
             'category' => 'profile',
-            'permissions' => 'public', // Profile pics are public
-            'size' => $file->getSize()
+            'permissions' => 'public',
+            'size' => $img->filesize()
         ]);
 
-        // Update member's photo
         $member = Member::find(Auth::id());
         if ($member) {
             $member->photo = $fileModel->id;
@@ -904,8 +910,398 @@ class MemberController extends Controller
             'message' => 'Profile picture updated successfully',
             'file' => [
                 'id' => $fileModel->id,
-                'url' => url("api/files/{$fileModel->id}") // URL to access the file
+                'url' => url("api/files/{$fileModel->id}")
             ]
+        ]);
+    }
+    #[OA\Get(
+        path: '/api/members/all',
+        description: 'List all active and visible members',
+        summary: 'Get list of all active and visible members',
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Success',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(
+                            property: 'members',
+                            type: 'array',
+                            items: new OA\Items(
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'integer'),
+                                    new OA\Property(property: 'first_name', type: 'string'),
+                                    new OA\Property(property: 'last_name', type: 'string'),
+                                    new OA\Property(property: 'full_name', type: 'string'),
+                                    new OA\Property(property: 'position', type: 'string'),
+                                    new OA\Property(property: 'position_translated', type: 'string'),
+                                    new OA\Property(property: 'description', type: 'string'),
+                                    new OA\Property(property: 'photo_url', type: 'string'),
+                                ]
+                            )
+                        )
+                    ]
+                )
+            )
+        ]
+    )]
+    public function getAllPublicMembers(): JsonResponse
+    {
+        $members = Member::where('is_active', true)
+            ->where('visible', true)
+            ->get();
+
+        $response = $members->map(function($member) {
+            $photoData = null;
+
+            if ($member->photo) {
+                $file = File::find($member->photo);
+                if ($file && Storage::disk('uploads')->exists($file->file_path)) {
+                    $path = Storage::disk('uploads')->path($file->file_path);
+                    $imageData = file_get_contents($path);
+                    $base64 = base64_encode($imageData);
+
+                    $photoData = [
+                        'data' => 'data:' . $file->mime_type . ';base64,' . $base64,
+                        'id' => $file->id,
+                        'url' => url("api/files/{$file->id}")
+                    ];
+                } else {
+                    // Default image as base64
+                    $defaultImage = file_get_contents(public_path('images/default-profile.jpg'));
+                    $photoData = [
+                        'data' => 'data:image/jpeg;base64,' . base64_encode($defaultImage),
+                        'id' => null,
+                        'url' => url("api/default-profile-image")
+                    ];
+                }
+            } else {
+                // Default image as base64
+                $defaultImage = file_get_contents(public_path('images/default-profile.jpg'));
+                $photoData = [
+                    'data' => 'data:image/jpeg;base64,' . base64_encode($defaultImage),
+                    'id' => null,
+                    'url' => url("api/default-profile-image")
+                ];
+            }
+
+            return [
+                'id' => $member->id,
+                'first_name' => $member->first_name,
+                'last_name' => $member->last_name,
+                'full_name' => $member->full_name,
+                'position' => $member->position,
+                'position_translated' => $member->getTranslatedPosition() ?? $member->position,
+                'description' => $member->description,
+                'photo' => $photoData,
+            ];
+        });
+
+        return response()->json([
+            'members' => $response
+        ]);
+    }
+
+    #[OA\Put(
+        path: '/api/member/edit',
+        description: 'Edit own profile details',
+        summary: 'Update authenticated user profile',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'description', type: 'string'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Profile updated successfully',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(
+                            property: 'user',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer'),
+                                new OA\Property(property: 'first_name', type: 'string'),
+                                new OA\Property(property: 'last_name', type: 'string'),
+                                new OA\Property(property: 'description', type: 'string'),
+                            ],
+                            type: 'object'
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'errors', type: 'object')
+                    ]
+                )
+            )
+        ]
+    )]
+    public function editMember(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'description' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $member = Auth::user();
+
+        if (isset($validated['description'])) {
+            $member->description = $validated['description'];
+        }
+
+        $member->save();
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => [
+                'id' => $member->id,
+                'first_name' => $member->first_name,
+                'last_name' => $member->last_name,
+                'description' => $member->description,
+            ]
+        ]);
+    }
+
+    #[OA\Put(
+        path: '/api/admin/member/{id}/edit',
+        description: 'Edit member profile (Admin only)',
+        summary: 'Update profile for a specific user',
+        security: [['sanctum' => []]],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'description', type: 'string'),
+                ]
+            )
+        ),
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                description: 'Member ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer')
+            )
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Profile updated successfully',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(
+                            property: 'user',
+                            properties: [
+                                new OA\Property(property: 'id', type: 'integer'),
+                                new OA\Property(property: 'full_name', type: 'string'),
+                                new OA\Property(property: 'description', type: 'string'),
+                            ],
+                            type: 'object'
+                        )
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 403,
+                description: 'Unauthorized - Admin access required',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string')
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'User not found',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string')
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'errors', type: 'object')
+                    ]
+                )
+            )
+        ]
+    )]
+    public function adminEditMember(Request $request, int $id): JsonResponse
+    {
+        if (!Auth::user()->isAdmin()) {
+            return response()->json([
+                'message' => 'Unauthorized. Admin access required.'
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'description' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $member = Member::find($id);
+
+        if (!$member) {
+            return response()->json([
+                'message' => 'User not found'
+            ], 404);
+        }
+
+        if (isset($validated['description'])) {
+            $member->description = $validated['description'];
+        }
+
+        $member->save();
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => [
+                'id' => $member->id,
+                'full_name' => $member->full_name,
+                'description' => $member->description,
+            ]
+        ]);
+    }
+
+    #[OA\Post(
+        path: '/api/member/request-password-reset',
+        description: 'Request password reset email',
+        summary: 'Request password reset link',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['email'],
+                properties: [
+                    new OA\Property(property: 'email', type: 'string', format: 'email')
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Password reset email sent',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string')
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'errors', type: 'object')
+                    ]
+                )
+            )
+        ]
+    )]
+    public function requestPasswordReset(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|exists:members,email'
+        ]);
+
+        $member = Member::where('email', $validated['email'])->first();
+
+        $resetCode = (string) Str::uuid();
+
+        $member->password_reset_code = $resetCode;
+        $member->save();
+
+        // TODO: Send password reset email
+        // Mail::to($member->email)->send(new PasswordResetMail($member, $resetCode));
+
+        return response()->json([
+            'message' => 'Password reset instructions have been sent to your email'
+        ]);
+    }
+
+    #[OA\Post(
+        path: '/api/member/reset-password',
+        description: 'Reset password using reset code',
+        summary: 'Reset user password',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['reset_code', 'password', 'password_confirmation'],
+                properties: [
+                    new OA\Property(property: 'reset_code', type: 'string'),
+                    new OA\Property(property: 'password', type: 'string', format: 'password'),
+                    new OA\Property(property: 'password_confirmation', type: 'string', format: 'password')
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Password reset successful',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string')
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Invalid reset code',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string')
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 422,
+                description: 'Validation error',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string'),
+                        new OA\Property(property: 'errors', type: 'object')
+                    ]
+                )
+            )
+        ]
+    )]
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'reset_code' => 'required|string|uuid',
+            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
+        ]);
+
+        $member = Member::where('password_reset_code', $validated['reset_code'])->first();
+
+        if (!$member) {
+            return response()->json([
+                'message' => 'Invalid password reset code'
+            ], 404);
+        }
+
+        $member->password = Hash::make($validated['password']);
+        $member->password_reset_code = null;
+        $member->save();
+
+        return response()->json([
+            'message' => 'Password has been reset successfully'
         ]);
     }
 }

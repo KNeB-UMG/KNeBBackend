@@ -20,7 +20,7 @@ class FileController extends Controller
         path: '/api/files/upload',
         description: 'Upload a file',
         summary: 'Upload a file to the server',
-        security: [['bearerAuth' => []]],
+        security: [['sanctum' => []]],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\MediaType(
