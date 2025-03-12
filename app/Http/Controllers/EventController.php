@@ -639,15 +639,6 @@ class EventController extends Controller
         description: 'Update an existing event (own non-visible events or any event for admin/moderator)',
         summary: 'Update event',
         security: [['sanctum' => []]],
-        parameters: [
-            new OA\Parameter(
-                name: 'id',
-                description: 'Event ID',
-                in: 'path',
-                required: true,
-                schema: new OA\Schema(type: 'integer')
-            )
-        ],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -660,6 +651,15 @@ class EventController extends Controller
                 ]
             )
         ),
+        parameters: [
+            new OA\Parameter(
+                name: 'id',
+                description: 'Event ID',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'integer')
+            )
+        ],
         responses: [
             new OA\Response(
                 response: 200,
