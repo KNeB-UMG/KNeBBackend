@@ -15,11 +15,15 @@ class Post extends Model
         'content',
         'file_id',
         'author_id',
-        'edit_history'
+        'edit_history',
+        'super_event',
+        'visible'
     ];
 
     protected $casts = [
-        'edit_history' => 'array'
+        'edit_history' => 'array',
+        'super_event' => 'boolean',
+        'visible' => 'boolean'
     ];
 
     public function author(): BelongsTo
