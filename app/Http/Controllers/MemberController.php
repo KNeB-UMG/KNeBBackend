@@ -94,7 +94,7 @@ class MemberController extends Controller
         // Mail::to($member->email)->send(new ActivationMail($member));
 
         return response()->json([
-            'message' => 'User successfully registered. Please check your email for activation instructions.',
+            'message' => 'Użytkownik został pomyślnie zarejestrowany. Sprawdź swoją skrzynkę e-mail, aby aktywować konto.',
         ], 201);
     }
 
@@ -167,7 +167,7 @@ class MemberController extends Controller
         // Check if user is admin
         if (!Auth::user()->isAdmin()) {
             return response()->json([
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora.'
             ], 403);
         }
 
@@ -203,7 +203,7 @@ class MemberController extends Controller
         // Mail::to($member->email)->send(new WelcomeMail($member, $randomPassword));
 
         return response()->json([
-            'message' => 'User successfully created. A welcome email with login credentials will be sent to the user.',
+            'message' => 'Użytkownik został pomyślnie utworzony. Wiadomość powitalna z danymi do logowania zostanie wysłana.',
             'user' => [
                 'id' => $member->id,
                 'email' => $member->email,
@@ -259,7 +259,8 @@ class MemberController extends Controller
                                 )
                             ],
                             type: 'object'
-                        )
+                        ),
+                        new OA\Property(property: 'message', type: 'string')
                     ]
                 )
             ),
@@ -294,13 +295,13 @@ class MemberController extends Controller
 
         if (!$member || !$member->isActiveUser()) {
             return response()->json([
-                'message' => 'Account is inactive or has no access'
+                'message' => 'Konto jest nieaktywne lub nie ma dostępu'
             ], 403);
         }
 
         if (!Hash::check($credentials['password'], $member->password)) {
             return response()->json([
-                'message' => 'Invalid credentials'
+                'message' => 'Nieprawidłowe dane logowania'
             ], 401);
         }
 
@@ -315,7 +316,8 @@ class MemberController extends Controller
                 'full_name' => $member->full_name,
                 'role' => $member->role,
                 'permissions' => $member->getPermissions()
-            ]
+            ],
+            'message' => 'Logowanie zakończone pomyślnie'
         ]);
     }
 
@@ -356,7 +358,7 @@ class MemberController extends Controller
         $member->tokens()->delete();
 
         return response()->json([
-            'message' => 'Your account has been deactivated successfully'
+            'message' => 'Twoje konto zostało pomyślnie dezaktywowane'
         ]);
     }
 
@@ -409,7 +411,7 @@ class MemberController extends Controller
         // Check if user is admin
         if (!Auth::user()->isAdmin()) {
             return response()->json([
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora.'
             ], 403);
         }
 
@@ -417,14 +419,14 @@ class MemberController extends Controller
 
         if (!$member) {
             return response()->json([
-                'message' => 'User not found'
+                'message' => 'Nie znaleziono użytkownika'
             ], 404);
         }
 
         // Prevent deactivating admin accounts
         if ($member->isAdmin()) {
             return response()->json([
-                'message' => 'Admin accounts cannot be deactivated'
+                'message' => 'Konta administratorów nie mogą być dezaktywowane'
             ], 403);
         }
 
@@ -435,7 +437,7 @@ class MemberController extends Controller
         $member->tokens()->delete();
 
         return response()->json([
-            'message' => 'Account has been deactivated successfully'
+            'message' => 'Konto zostało pomyślnie dezaktywowane'
         ]);
     }
     #[OA\Post(
@@ -478,7 +480,7 @@ class MemberController extends Controller
 
         if (!$member) {
             return response()->json([
-                'message' => 'Invalid activation code'
+                'message' => 'Nieprawidłowy kod aktywacyjny'
             ], 404);
         }
 
@@ -487,7 +489,7 @@ class MemberController extends Controller
         $member->save();
 
         return response()->json([
-            'message' => 'Your account has been activated successfully'
+            'message' => 'Twoje konto zostało pomyślnie aktywowane'
         ]);
     }
     #[OA\Put(
@@ -577,7 +579,7 @@ class MemberController extends Controller
         // Check if user is admin
         if (!Auth::user()->isAdmin()) {
             return response()->json([
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora.'
             ], 403);
         }
 
@@ -589,7 +591,7 @@ class MemberController extends Controller
 
         if (!$member) {
             return response()->json([
-                'message' => 'User not found'
+                'message' => 'Nie znaleziono użytkownika'
             ], 404);
         }
 
@@ -597,7 +599,7 @@ class MemberController extends Controller
         $member->save();
 
         return response()->json([
-            'message' => 'User role updated successfully',
+            'message' => 'Rola użytkownika została pomyślnie zaktualizowana',
             'user' => [
                 'id' => $member->id,
                 'email' => $member->email,
@@ -685,10 +687,9 @@ class MemberController extends Controller
     )]
     public function changeVisibility(Request $request, int $id): JsonResponse
     {
-        // Check if user is admin
         if (!Auth::user()->isAdmin()) {
             return response()->json([
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora.'
             ], 403);
         }
 
@@ -700,7 +701,7 @@ class MemberController extends Controller
 
         if (!$member) {
             return response()->json([
-                'message' => 'User not found'
+                'message' => 'Nie znaleziono użytkownika'
             ], 404);
         }
 
@@ -708,7 +709,7 @@ class MemberController extends Controller
         $member->save();
 
         return response()->json([
-            'message' => 'User visibility updated successfully',
+            'message' => 'Widoczność użytkownika została pomyślnie zaktualizowana',
             'user' => [
                 'id' => $member->id,
                 'email' => $member->email,
@@ -798,7 +799,7 @@ class MemberController extends Controller
     {
         if (!Auth::user()->isAdmin()) {
             return response()->json([
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora.'
             ], 403);
         }
 
@@ -810,7 +811,7 @@ class MemberController extends Controller
 
         if (!$member) {
             return response()->json([
-                'message' => 'User not found'
+                'message' => 'Nie znaleziono użytkownika'
             ], 404);
         }
 
@@ -818,7 +819,7 @@ class MemberController extends Controller
         $member->save();
 
         return response()->json([
-            'message' => 'User position updated successfully',
+            'message' => 'Pozycja użytkownika została pomyślnie zaktualizowana',
             'user' => [
                 'id' => $member->id,
                 'email' => $member->email,
@@ -878,16 +879,56 @@ class MemberController extends Controller
         $file = $request->file('file');
         $fileName = time() . '_profile_' . Auth::id() . '.jpg';
 
-        $img = Image::make($file->getRealPath())->fit(512, 512);
-
+        // Create directory if it doesn't exist
         $directory = storage_path('app/uploads/profile-pictures');
         if (!file_exists($directory)) {
             mkdir($directory, 0755, true);
         }
 
-        $img->save(storage_path('app/uploads/profile-pictures/' . $fileName), 90, 'jpg');
+        // Get source image
+        $sourceImage = imagecreatefromstring(file_get_contents($file->getRealPath()));
+        $sourceWidth = imagesx($sourceImage);
+        $sourceHeight = imagesy($sourceImage);
+
+        // Create a square canvas
+        $targetSize = 512;
+        $targetImage = imagecreatetruecolor($targetSize, $targetSize);
+
+        // Fill with background color (white) in case of transparent images
+        $bgColor = imagecolorallocate($targetImage, 255, 255, 255);
+        imagefill($targetImage, 0, 0, $bgColor);
+
+        // Calculate scaling to completely fill the square (may crop)
+        $scale = max($targetSize / $sourceWidth, $targetSize / $sourceHeight);
+        $newWidth = $sourceWidth * $scale;
+        $newHeight = $sourceHeight * $scale;
+        $offsetX = ($targetSize - $newWidth) / 2;
+        $offsetY = ($targetSize - $newHeight) / 2;
+
+        // Copy resized image onto the new canvas
+        imagecopyresampled(
+            $targetImage,
+            $sourceImage,
+            $offsetX,
+            $offsetY,
+            0,
+            0,
+            $newWidth,
+            $newHeight,
+            $sourceWidth,
+            $sourceHeight
+        );
+
+        // Save as JPEG
+        $targetPath = $directory . '/' . $fileName;
+        imagejpeg($targetImage, $targetPath, 90);
+
+        // Free memory
+        imagedestroy($sourceImage);
+        imagedestroy($targetImage);
 
         $path = 'profile-pictures/' . $fileName;
+        $fileSize = filesize($targetPath);
 
         $fileModel = File::create([
             'original_name' => $file->getClientOriginalName(),
@@ -897,7 +938,7 @@ class MemberController extends Controller
             'file_type' => 'image',
             'category' => 'profile',
             'permissions' => 'public',
-            'size' => $img->filesize()
+            'size' => $fileSize
         ]);
 
         $member = Member::find(Auth::id());
@@ -939,7 +980,8 @@ class MemberController extends Controller
                                     new OA\Property(property: 'photo_url', type: 'string'),
                                 ]
                             )
-                        )
+                        ),
+                        new OA\Property(property: 'message', type: 'string')
                     ]
                 )
             )
@@ -952,37 +994,27 @@ class MemberController extends Controller
             ->get();
 
         $response = $members->map(function($member) {
-            $photoData = null;
+            $photoData = [
+                'data' => 'DEFAULT-PROFILE-PICTURE',
+                'id' => null
+            ];
 
             if ($member->photo) {
                 $file = File::find($member->photo);
-                if ($file && Storage::disk('uploads')->exists($file->file_path)) {
-                    $path = Storage::disk('uploads')->path($file->file_path);
-                    $imageData = file_get_contents($path);
-                    $base64 = base64_encode($imageData);
+                if ($file) {
+                    try {
+                        $absolutePath = storage_path('app/uploads/profile-pictures/' . basename($file->file_path));
 
-                    $photoData = [
-                        'data' => 'data:' . $file->mime_type . ';base64,' . $base64,
-                        'id' => $file->id,
-                        'url' => url("api/files/{$file->id}")
-                    ];
-                } else {
-                    // Default image as base64
-                    $defaultImage = file_get_contents(public_path('images/default-profile.jpg'));
-                    $photoData = [
-                        'data' => 'data:image/jpeg;base64,' . base64_encode($defaultImage),
-                        'id' => null,
-                        'url' => url("api/default-profile-image")
-                    ];
+                        if (file_exists($absolutePath)) {
+                            $photoData = [
+                                'data' => 'data:' . $file->mime_type . ';base64,' . base64_encode(file_get_contents($absolutePath)),
+                                'id' => $file->id
+                            ];
+                        }
+                    } catch (\Exception $e) {
+                        // Keep default indicator
+                    }
                 }
-            } else {
-                // Default image as base64
-                $defaultImage = file_get_contents(public_path('images/default-profile.jpg'));
-                $photoData = [
-                    'data' => 'data:image/jpeg;base64,' . base64_encode($defaultImage),
-                    'id' => null,
-                    'url' => url("api/default-profile-image")
-                ];
             }
 
             return [
@@ -998,9 +1030,11 @@ class MemberController extends Controller
         });
 
         return response()->json([
-            'members' => $response
+            'members' => $response,
+            'message' => 'Pomyślnie zwrócono listę członków'
         ]);
     }
+
 
     #[OA\Put(
         path: '/api/member/edit',
@@ -1062,7 +1096,7 @@ class MemberController extends Controller
         $member->save();
 
         return response()->json([
-            'message' => 'Profile updated successfully',
+            'message' => 'Profil został pomyślnie zaktualizowany',
             'user' => [
                 'id' => $member->id,
                 'first_name' => $member->first_name,
@@ -1147,7 +1181,7 @@ class MemberController extends Controller
     {
         if (!Auth::user()->isAdmin()) {
             return response()->json([
-                'message' => 'Unauthorized. Admin access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora.'
             ], 403);
         }
 
@@ -1159,7 +1193,7 @@ class MemberController extends Controller
 
         if (!$member) {
             return response()->json([
-                'message' => 'User not found'
+                'message' => 'Nie znaleziono użytkownika'
             ], 404);
         }
 
@@ -1170,7 +1204,7 @@ class MemberController extends Controller
         $member->save();
 
         return response()->json([
-            'message' => 'Profile updated successfully',
+            'message' => 'Profil został pomyślnie zaktualizowany',
             'user' => [
                 'id' => $member->id,
                 'full_name' => $member->full_name,
@@ -1231,7 +1265,7 @@ class MemberController extends Controller
         // Mail::to($member->email)->send(new PasswordResetMail($member, $resetCode));
 
         return response()->json([
-            'message' => 'Password reset instructions have been sent to your email'
+            'message' => 'Instrukcje resetowania hasła zostały wysłane na Twój adres e-mail'
         ]);
     }
 
@@ -1292,7 +1326,7 @@ class MemberController extends Controller
 
         if (!$member) {
             return response()->json([
-                'message' => 'Invalid password reset code'
+                'message' => 'Nieprawidłowy kod resetowania hasła'
             ], 404);
         }
 
@@ -1301,7 +1335,7 @@ class MemberController extends Controller
         $member->save();
 
         return response()->json([
-            'message' => 'Password has been reset successfully'
+            'message' => 'Hasło zostało pomyślnie zresetowane'
         ]);
     }
 }

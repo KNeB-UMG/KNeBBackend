@@ -80,7 +80,8 @@ class EventController extends Controller
                         new OA\Property(property: 'total', type: 'integer'),
                         new OA\Property(property: 'current_page', type: 'integer'),
                         new OA\Property(property: 'per_page', type: 'integer'),
-                        new OA\Property(property: 'last_page', type: 'integer')
+                        new OA\Property(property: 'last_page', type: 'integer'),
+                        new OA\Property(property: 'message', type: 'string')
                     ]
                 )
             )
@@ -95,7 +96,6 @@ class EventController extends Controller
 
         $query = Event::where('visible', true)->with('author');
 
-        // Apply date filters if provided
         if ($dateFrom) {
             $query->where('event_date', '>=', $dateFrom . ' 00:00:00');
         }
@@ -104,16 +104,13 @@ class EventController extends Controller
             $query->where('event_date', '<=', $dateTo . ' 23:59:59');
         }
 
-        // Apply sorting
         switch ($sort) {
             case 'upcoming':
-                // First show events happening today or in the future, then past events
                 $now = now()->format('Y-m-d H:i:s');
                 $query->orderByRaw("CASE WHEN event_date >= ? THEN 0 ELSE 1 END", [$now])
                     ->orderBy('event_date', 'asc');
                 break;
             case 'past':
-                // First show recent past events, then upcoming events
                 $now = now()->format('Y-m-d H:i:s');
                 $query->orderByRaw("CASE WHEN event_date < ? THEN 0 ELSE 1 END", [$now])
                     ->orderBy('event_date', 'desc');
@@ -145,7 +142,8 @@ class EventController extends Controller
             'total' => $events->total(),
             'current_page' => $events->currentPage(),
             'per_page' => $events->perPage(),
-            'last_page' => $events->lastPage()
+            'last_page' => $events->lastPage(),
+            'message' => 'Pomyślnie zwrócono wydarzenia'
         ]);
     }
 
@@ -223,7 +221,8 @@ class EventController extends Controller
                         new OA\Property(property: 'total', type: 'integer'),
                         new OA\Property(property: 'current_page', type: 'integer'),
                         new OA\Property(property: 'per_page', type: 'integer'),
-                        new OA\Property(property: 'last_page', type: 'integer')
+                        new OA\Property(property: 'last_page', type: 'integer'),
+                        new OA\Property(property: 'message', type: 'string')
                     ]
                 )
             ),
@@ -240,10 +239,9 @@ class EventController extends Controller
     )]
     public function adminIndex(Request $request): JsonResponse
     {
-        // Check permissions
         if (!Auth::user()->hasAnyPermission(['manage_content'])) {
             return response()->json([
-                'message' => 'Unauthorized. Admin or moderator access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora lub moderatora.'
             ], 403);
         }
 
@@ -255,14 +253,12 @@ class EventController extends Controller
 
         $query = Event::with('author');
 
-        // Apply visibility filter
         if ($visibility === 'visible') {
             $query->where('visible', true);
         } else if ($visibility === 'hidden') {
             $query->where('visible', false);
         }
 
-        // Apply date filters if provided
         if ($dateFrom) {
             $query->where('event_date', '>=', $dateFrom . ' 00:00:00');
         }
@@ -271,16 +267,13 @@ class EventController extends Controller
             $query->where('event_date', '<=', $dateTo . ' 23:59:59');
         }
 
-        // Apply sorting
         switch ($sort) {
             case 'upcoming':
-                // First show events happening today or in the future, then past events
                 $now = now()->format('Y-m-d H:i:s');
                 $query->orderByRaw("CASE WHEN event_date >= ? THEN 0 ELSE 1 END", [$now])
                     ->orderBy('event_date', 'asc');
                 break;
             case 'past':
-                // First show recent past events, then upcoming events
                 $now = now()->format('Y-m-d H:i:s');
                 $query->orderByRaw("CASE WHEN event_date < ? THEN 0 ELSE 1 END", [$now])
                     ->orderBy('event_date', 'desc');
@@ -313,7 +306,8 @@ class EventController extends Controller
             'total' => $events->total(),
             'current_page' => $events->currentPage(),
             'per_page' => $events->perPage(),
-            'last_page' => $events->lastPage()
+            'last_page' => $events->lastPage(),
+            'message' => 'Pomyślnie zwrócono wydarzenia'
         ]);
     }
 
@@ -358,7 +352,8 @@ class EventController extends Controller
                                 new OA\Property(property: 'updated_at', type: 'string', format: 'date-time')
                             ],
                             type: 'object'
-                        )
+                        ),
+                        new OA\Property(property: 'message', type: 'string')
                     ]
                 )
             ),
@@ -382,11 +377,10 @@ class EventController extends Controller
 
         if (!$event) {
             return response()->json([
-                'message' => 'Event not found or not visible'
+                'message' => 'Nie znaleziono wydarzenia lub nie jest ono widoczne'
             ], 404);
         }
 
-        // Format file data if exists
         $fileData = null;
         if ($event->file) {
             $fileData = [
@@ -412,22 +406,23 @@ class EventController extends Controller
                 ],
                 'created_at' => $event->created_at,
                 'updated_at' => $event->updated_at
-            ]
+            ],
+            'message' => 'Pomyślnie zwrócono wydarzenie'
         ]);
     }
 
     #[OA\Get(
-        path: '/api/admin/events/{id}',
-        description: 'Get a specific event by ID (including non-visible ones)',
+        path: '/api/admin/events/{path}',
+        description: 'Get a specific event by its path (including non-visible ones)',
         summary: 'Get event details for administration',
         security: [['sanctum' => []]],
         parameters: [
             new OA\Parameter(
-                name: 'id',
-                description: 'Event ID',
+                name: 'path',
+                description: 'Event path',
                 in: 'path',
                 required: true,
-                schema: new OA\Schema(type: 'integer')
+                schema: new OA\Schema(type: 'string')
             )
         ],
         responses: [
@@ -460,7 +455,8 @@ class EventController extends Controller
                                 new OA\Property(property: 'updated_at', type: 'string', format: 'date-time')
                             ],
                             type: 'object'
-                        )
+                        ),
+                        new OA\Property(property: 'message', type: 'string')
                     ]
                 )
             ),
@@ -484,25 +480,24 @@ class EventController extends Controller
             )
         ]
     )]
-    public function adminShow(int $id): JsonResponse
+    public function adminShow(string $path): JsonResponse
     {
-        // Check permissions
         if (!Auth::user()->hasAnyPermission(['manage_content'])) {
             return response()->json([
-                'message' => 'Unauthorized. Admin or moderator access required.'
+                'message' => 'Brak uprawnień. Wymagany dostęp administratora lub moderatora.'
             ], 403);
         }
 
         $event = Event::with(['author', 'file'])
-            ->find($id);
+            ->where('event_path', $path)
+            ->first();
 
         if (!$event) {
             return response()->json([
-                'message' => 'Event not found'
+                'message' => 'Nie znaleziono wydarzenia'
             ], 404);
         }
 
-        // Format file data if exists
         $fileData = null;
         if ($event->file) {
             $fileData = [
@@ -530,7 +525,8 @@ class EventController extends Controller
                 'edit_history' => $event->edit_history,
                 'created_at' => $event->created_at,
                 'updated_at' => $event->updated_at
-            ]
+            ],
+            'message' => 'Pomyślnie zwrócono wydarzenie'
         ]);
     }
 
@@ -602,7 +598,6 @@ class EventController extends Controller
             'file_id' => 'nullable|exists:files,id'
         ]);
 
-        // Generate path from title
         $eventPath = Event::generatePath($validated['title']);
 
         $event = Event::create([
@@ -611,7 +606,7 @@ class EventController extends Controller
             'description' => $validated['description'],
             'event_path' => $eventPath,
             'event_date' => $validated['event_date'],
-            'visible' => false, // New events are not visible by default
+            'visible' => false,
             'file_id' => $validated['file_id'] ?? null,
             'author_id' => Auth::id(),
             'edit_history' => [
@@ -625,7 +620,7 @@ class EventController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Event created successfully. It will be visible after admin approval.',
+            'message' => 'Wydarzenie zostało utworzone pomyślnie. Będzie widoczne po zatwierdzeniu przez administratora.',
             'event' => [
                 'id' => $event->id,
                 'title' => $event->title,
@@ -635,7 +630,7 @@ class EventController extends Controller
     }
 
     #[OA\Put(
-        path: '/api/events/{id}',
+        path: '/api/events/{path}',
         description: 'Update an existing event (own non-visible events or any event for admin/moderator)',
         summary: 'Update event',
         security: [['sanctum' => []]],
@@ -653,11 +648,11 @@ class EventController extends Controller
         ),
         parameters: [
             new OA\Parameter(
-                name: 'id',
-                description: 'Event ID',
+                name: 'path',
+                description: 'Event path',
                 in: 'path',
                 required: true,
-                schema: new OA\Schema(type: 'integer')
+                schema: new OA\Schema(type: 'string')
             )
         ],
         responses: [
@@ -709,14 +704,13 @@ class EventController extends Controller
             )
         ]
     )]
-    public function update(Request $request, int $id): JsonResponse
+    public function update(Request $request, string $path): JsonResponse
     {
-        $event = Event::findOrFail($id);
+        $event = Event::where('event_path', $path)->firstOrFail();
 
-        // Check if user can edit
         if (!$event->canBeEditedBy(Auth::user())) {
             return response()->json([
-                'message' => 'You do not have permission to edit this event'
+                'message' => 'Nie masz uprawnień do edycji tego wydarzenia'
             ], 403);
         }
 
@@ -728,11 +722,9 @@ class EventController extends Controller
             'file_id' => 'sometimes|nullable|exists:files,id'
         ]);
 
-        // Track changes for edit history
         $changes = [];
         $oldEvent = $event->toArray();
 
-        // Update event_path if title changes
         if (isset($validated['title']) && $validated['title'] !== $event->title) {
             $validated['event_path'] = Event::generatePath($validated['title']);
             $changes['title'] = [
@@ -769,7 +761,6 @@ class EventController extends Controller
             ];
         }
 
-        // Update edit history
         $editHistory = $event->edit_history ?? [];
         $editHistory[] = [
             'timestamp' => now()->toIso8601String(),
@@ -781,7 +772,6 @@ class EventController extends Controller
 
         $validated['edit_history'] = $editHistory;
 
-        // Make visible false if edited by the author and not admin/moderator
         if (!Auth::user()->hasAnyPermission(['manage_content']) && $event->author_id === Auth::id()) {
             $validated['visible'] = false;
         }
@@ -789,7 +779,7 @@ class EventController extends Controller
         $event->update($validated);
 
         return response()->json([
-            'message' => 'Event updated successfully',
+            'message' => 'Wydarzenie zostało zaktualizowane pomyślnie',
             'event' => [
                 'id' => $event->id,
                 'title' => $event->title,
@@ -800,19 +790,10 @@ class EventController extends Controller
     }
 
     #[OA\Put(
-        path: '/api/admin/events/{id}/visibility',
+        path: '/api/admin/events/{path}/visibility',
         description: 'Change event visibility (Admin only)',
         summary: 'Toggle event visibility',
         security: [['sanctum' => []]],
-        parameters: [
-            new OA\Parameter(
-                name: 'id',
-                description: 'Event ID',
-                in: 'path',
-                required: true,
-                schema: new OA\Schema(type: 'integer')
-            )
-        ],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -822,6 +803,15 @@ class EventController extends Controller
                 ]
             )
         ),
+        parameters: [
+            new OA\Parameter(
+                name: 'path',
+                description: 'Event path',
+                in: 'path',
+                required: true,
+                schema: new OA\Schema(type: 'string')
+            )
+        ],
         responses: [
             new OA\Response(
                 response: 200,
@@ -861,14 +851,13 @@ class EventController extends Controller
             )
         ]
     )]
-    public function updateVisibility(Request $request, int $id): JsonResponse
+    public function updateVisibility(Request $request, string $path): JsonResponse
     {
-        $event = Event::findOrFail($id);
+        $event = Event::where('event_path', $path)->firstOrFail();
 
-        // Check if user can change visibility (admin only)
         if (!$event->visibilityCanBeChangedBy(Auth::user())) {
             return response()->json([
-                'message' => 'You do not have permission to change visibility of this event'
+                'message' => 'Nie masz uprawnień do zmiany widoczności tego wydarzenia'
             ], 403);
         }
 
@@ -876,7 +865,6 @@ class EventController extends Controller
             'visible' => 'required|boolean'
         ]);
 
-        // Update edit history
         $editHistory = $event->edit_history ?? [];
         $editHistory[] = [
             'timestamp' => now()->toIso8601String(),
@@ -891,7 +879,7 @@ class EventController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Event visibility updated successfully',
+            'message' => 'Widoczność wydarzenia została zaktualizowana pomyślnie',
             'event' => [
                 'id' => $event->id,
                 'title' => $event->title,
@@ -901,17 +889,17 @@ class EventController extends Controller
     }
 
     #[OA\Delete(
-        path: '/api/events/{id}',
+        path: '/api/events/{path}',
         description: 'Delete an event (Admin and Moderator only)',
         summary: 'Delete event',
         security: [['sanctum' => []]],
         parameters: [
             new OA\Parameter(
-                name: 'id',
-                description: 'Event ID',
+                name: 'path',
+                description: 'Event path',
                 in: 'path',
                 required: true,
-                schema: new OA\Schema(type: 'integer')
+                schema: new OA\Schema(type: 'string')
             )
         ],
         responses: [
@@ -944,21 +932,20 @@ class EventController extends Controller
             )
         ]
     )]
-    public function destroy(int $id): JsonResponse
+    public function destroy(string $path): JsonResponse
     {
-        $event = Event::findOrFail($id);
+        $event = Event::where('event_path', $path)->firstOrFail();
 
-        // Check if user can delete
         if (!$event->canBeDeletedBy(Auth::user())) {
             return response()->json([
-                'message' => 'You do not have permission to delete this event'
+                'message' => 'Nie masz uprawnień do usunięcia tego wydarzenia'
             ], 403);
         }
 
         $event->delete();
 
         return response()->json([
-            'message' => 'Event deleted successfully'
+            'message' => 'Wydarzenie zostało usunięte pomyślnie'
         ]);
     }
 }
