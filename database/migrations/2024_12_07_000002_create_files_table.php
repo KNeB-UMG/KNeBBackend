@@ -15,12 +15,14 @@ return new class extends Migration
             $table->string('category');
             $table->string('permissions');
             $table->integer('size');
+            $table->string('original_name');
+            $table->string('file_path');
+            $table->string('mime_type');
             $table->timestamps();
         });
     }
 
     public function down()
     {
-        Schema::dropIfExists('files');
     }
 };

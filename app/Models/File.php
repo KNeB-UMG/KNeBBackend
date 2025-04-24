@@ -12,6 +12,9 @@ class File extends Model
     use HasFactory;
 
     protected $fillable = [
+        'original_name',
+        'file_path',
+        'mime_type',
         'uploaded_by',
         'file_type',
         'category',
@@ -22,6 +25,11 @@ class File extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(Member::class, 'uploaded_by');
+    }
+
+    public function profileOf(): BelongsTo
+    {
+        return $this->belongsTo(Member::class, 'photo', 'id');
     }
 
     public function projects(): HasMany
