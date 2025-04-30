@@ -20,14 +20,18 @@ class Project extends Model
         'technologies',
         'project_link',
         'repo_link',
-        'file_id'
+        'file_id',
+        'visible',
+        'future'
     ];
 
     protected $casts = [
         'participants' => 'array',
         'technologies' => 'array',
         'start_date' => 'date',
-        'end_date' => 'date'
+        'end_date' => 'date',
+        'visible' => 'boolean',
+        'future' => 'boolean'
     ];
 
     public function file(): BelongsTo

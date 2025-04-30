@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\EventController;
+use App\Http\Controllers\PostController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MemberController;
@@ -62,4 +63,17 @@ Route::prefix('admin/events')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [EventController::class, 'adminIndex']);
     Route::get('/{id}', [EventController::class, 'adminShow']);
     Route::put('/{id}/visibility', [EventController::class, 'updateVisibility']);
+});
+// Posts routes
+Route::prefix('posts')->group(function () {
+    Route::get('/', [PostController::class, 'regularPosts']);
+    Route::get('/super_events', [PostController::class, 'superEvents']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/store', [PostController::class, 'store']);
+        Route::put('/{id}', [PostController::class, 'update']);
+    });
+});
+Route::prefix('admin/posts')->middleware('auth:sanctum')->group(function () {
+    Route::put('/{id}/update-status', [PostController::class, 'updateStatus']);
 });
